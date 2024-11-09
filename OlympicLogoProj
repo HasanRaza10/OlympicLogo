@@ -1,0 +1,219 @@
+#include <iostream>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
+#include <GL/glut.h>
+
+#ifndef M_PI
+#define M_PI 3.141592654
+#endif
+
+#ifdef _WIN32
+#define drand48() (static_cast<float>(rand()) / RAND_MAX)
+#define srand48(x) (srand((x)))
+#else
+extern double drand48(void);
+extern void srand48(long seedval);
+#endif
+
+constexpr int XSIZE = 100;
+constexpr int YSIZE = 75;
+constexpr int RINGS = 5;
+
+enum Color {
+    BLUE = 0,
+    BLACK,
+    RED,
+    YELLOW,
+    GREEN,
+    BACKGROUND = 8
+};
+
+using Point = std::array<short, 2>;
+
+GLenum rgb, doubleBuffer, directRender;
+int SPEEDLIMIT = 4000;
+unsigned char rgb_colors[RINGS][3];
+int mapped_colors[RINGS];
+float dests[RINGS][3];
+float offsets[RINGS][3];
+float angs[RINGS];
+float rotAxis[RINGS][3];
+int iters[RINGS];
+GLuint theTorus;
+
+void FillTorus(float rc, int numc, float rt, int numt) {
+    double pi = M_PI, twopi = 2 * pi;
+    for (int i = 0; i < numc; i++) {
+        glBegin(GL_QUAD_STRIP);
+        for (int j = 0; j <= numt; j++) {
+            for (int k = 1; k >= 0; k--) {
+                double s = (i + k) % numc + 0.5;
+                double t = j % numt;
+                double x = cos(t * twopi / numt) * cos(s * twopi / numc);
+                double y = sin(t * twopi / numt) * cos(s * twopi / numc);
+                double z = sin(s * twopi / numc);
+                glNormal3f(x, y, z);
+                x = (rt + rc * cos(s * twopi / numc)) * cos(t * twopi / numt);
+                y = (rt + rc * cos(s * twopi / numc)) * sin(t * twopi / numt);
+                z = rc * sin(s * twopi / numc);
+                glVertex3f(x, y, z);
+            }
+        }
+        glEnd();
+    }
+}
+
+float Clamp(int iters_left, float t) {
+    return (iters_left < 3) ? 0.0f : (iters_left - 2) * t / iters_left;
+}
+
+void Idle() {
+    bool more = false;
+    for (int i = 0; i < RINGS; i++) {
+        if (iters[i]) {
+            for (int j = 0; j < 3; j++) {
+                offsets[i][j] = Clamp(iters[i], offsets[i][j]);
+            }
+            angs[i] = Clamp(iters[i], angs[i]);
+            iters[i]--;
+            more = true;
+        }
+    }
+    if (more) {
+        glutPostRedisplay();
+    } else {
+        glutIdleFunc(nullptr);
+    }
+}
+
+void DrawScene() {
+    glPushMatrix();
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    gluLookAt(0, 0, 10, 0, 0, 0, 0, 1, 0);
+    for (int i = 0; i < RINGS; i++) {
+        if (rgb)
+            glColor3ubv(rgb_colors[i]);
+        else
+            glIndexi(mapped_colors[i]);
+        glPushMatrix();
+        glTranslatef(dests[i][0] + offsets[i][0], dests[i][1] + offsets[i][1], dests[i][2] + offsets[i][2]);
+        glRotatef(angs[i], rotAxis[i][0], rotAxis[i][1], rotAxis[i][2]);
+        glCallList(theTorus);
+        glPopMatrix();
+    }
+    glPopMatrix();
+    if (doubleBuffer) {
+        glutSwapBuffers();
+    } else {
+        glFlush();
+    }
+}
+
+float MyRand() {
+    return 10.0f * (drand48() - 0.5f);
+}
+
+void ReInit() {
+    float deviation = MyRand() / 2;
+    deviation *= deviation;
+    for (int i = 0; i < RINGS; i++) {
+        offsets[i][0] = MyRand();
+        offsets[i][1] = MyRand();
+        offsets[i][2] = MyRand();
+        angs[i] = 260.0f * MyRand();
+        rotAxis[i][0] = MyRand();
+        rotAxis[i][1] = MyRand();
+        rotAxis[i][2] = MyRand();
+        iters[i] = static_cast<int>(deviation * MyRand() + 60.0f);
+    }
+}
+
+void Init() {
+    static const float lmodel_ambient[] = {0.0, 0.0, 0.0, 0.0};
+    static const float light0_ambient[] = {0.1, 0.1, 0.1, 1.0};
+    static const float light0_diffuse[] = {1.0, 1.0, 1.0, 0.0};
+    static const float light0_position[] = {0.8660254f, 0.5f, 1, 0};
+
+    srand48(0x102342);
+    ReInit();
+
+    for (int i = 0; i < RINGS; i++) {
+        rgb_colors[i][0] = rgb_colors[i][1] = rgb_colors[i][2] = 0;
+    }
+    rgb_colors[BLUE][2] = 255;
+    rgb_colors[RED][0] = 255;
+    rgb_colors[GREEN][1] = 255;
+    rgb_colors[YELLOW][0] = rgb_colors[YELLOW][1] = 255;
+
+    mapped_colors[BLUE] = BLUE;
+    mapped_colors[RED] = RED;
+    mapped_colors[GREEN] = GREEN;
+    mapped_colors[YELLOW] = YELLOW;
+    mapped_colors[BLACK] = BLACK;
+
+    float spacing = 2.5f;
+    dests[BLUE][0] = -spacing;
+    dests[BLACK][0] = 0.0f;
+    dests[RED][0] = spacing;
+
+    theTorus = glGenLists(1);
+    glNewList(theTorus, GL_COMPILE);
+    FillTorus(0.1f, 8, 1.0f, 25);
+    glEndList();
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
+    glClearDepth(1.0);
+
+    if (rgb) {
+        glClearColor(0.5f, 0.5f, 0.5f, 0.0f);
+        glLightfv(GL_LIGHT0, GL_AMBIENT, light0_ambient);
+        glLightfv(GL_LIGHT0, GL_DIFFUSE, light0_diffuse);
+        glLightfv(GL_LIGHT0, GL_POSITION, light0_position);
+        glEnable(GL_LIGHT0);
+        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, lmodel_ambient);
+        glEnable(GL_LIGHTING);
+        glEnable(GL_COLOR_MATERIAL);
+        glShadeModel(GL_SMOOTH);
+    } else {
+        glClearIndex(BACKGROUND);
+        glShadeModel(GL_FLAT);
+    }
+
+    glMatrixMode(GL_PROJECTION);
+    gluPerspective(45, 1.33, 0.1, 100.0);
+    glMatrixMode(GL_MODELVIEW);
+}
+
+void Reshape(int width, int height) {
+    glViewport(0, 0, width, height);
+}
+
+void Key(unsigned char key, int x, int y) {
+    if (key == 27) {
+        exit(0);
+    } else if (key == ' ') {
+        ReInit();
+        glutIdleFunc(Idle);
+    }
+}
+
+int main(int argc, char **argv) {
+    glutInitWindowSize(400, 300);
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+    glutCreateWindow("Olympic Logo");
+
+    Init();
+    glutReshapeFunc(Reshape);
+    glutKeyboardFunc(Key);
+    glutDisplayFunc(DrawScene);
+    glutVisibilityFunc([](int vis) {
+        glutIdleFunc(vis == GLUT_VISIBLE ? Idle : nullptr);
+    });
+
+    glutMainLoop();
+    return 0;
+}
