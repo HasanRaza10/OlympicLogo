@@ -30,12 +30,12 @@ Windows (MinGW)
 g++ -o olympic_logo main.cpp -lGL -lGLU -lglut
 ./olympic_logo
 
+```
 
-
-## Make sure the required DLLs (freeglut.dll, etc.) are available in your PATH.
+Make sure the required DLLs (freeglut.dll, etc.) are available in your PATH.
 
 ⌨️ Controls
 Spacebar: Reinitialize the animation with random positions and rotations
 
 ESC: Exit the program
-##
+
