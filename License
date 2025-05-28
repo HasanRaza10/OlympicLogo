@@ -1,0 +1,50 @@
+📄 License
+This project is licensed under the MIT License.
+
+🙌 Author
+Hasan Raza
+📍 GitHub: @HasanRaza10
+
+yaml
+Copy
+Edit
+
+---
+
+## ✅ Other Files to Add
+
+### 1. `.gitignore` (for C++ Projects)
+
+Create a `.gitignore` file:
+```gitignore
+*.exe
+*.o
+*.out
+*.obj
+*.log
+.DS_Store
+build/
+2. LICENSE File (MIT)
+You can auto-generate this on GitHub when creating the repo, or add this as a LICENSE file:
+
+txt
+Copy
+Edit
+MIT License
+
+Copyright (c) 2025 Hasan Raza
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+3. (Optional) Makefile
+makefile
+Copy
+Edit
+all:
+	g++ -o olympic_logo main.cpp -lGL -lGLU -lglut
+Run with:
+
+bash
+Copy
+Edit
+make
+./olympic_logo
