@@ -37,6 +37,6 @@ Make sure the required DLLs (freeglut.dll, etc.) are available in your PATH.
 ⌨️ Controls
 Spacebar: Reinitialize the animation with random positions and rotations
 
-```bash
+```
 ESC: Exit the program
 ```
